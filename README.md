@@ -35,3 +35,16 @@ The controls are:
 * Bt(row:Int,column:Int) - The two rows of buttons
 * Sl(column:Int) - The slider
 * Pr(row:Int,column:Int) - The 4 buttons at the bottom right
+
+Example
+
+    val bcr = new BCRKtl("BCR2000 Port 1","BCR2000 Port1")
+    bcr.init
+    //add action for lower left knob
+    bcr.addAction(Kn(2,0), { v:Double => println(v) })
+    
+    val bcr = new BCRPagedKtl("BCR2000 Port 1","BCR2000 Port1")
+    bcr.init
+    //add action for lower left knob on (virtual) scene 0
+    bcr.addAction(0,Kn(2,0), { v:Double => println(v) })
+    //to change scene use the two lower right buttons.
