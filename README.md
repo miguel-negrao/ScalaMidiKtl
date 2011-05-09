@@ -21,3 +21,17 @@ The controls are:
 * Bt(row:Int,column:Int) - The two rows of buttons
 * Kn(row:Int,column:Int) - The three rows of encoders
 * Pr(row:Int,column:Int) - The 4 buttons at the bottom right
+
+
+Behringer BCF 2000
+
+* BCFKtl
+* BCFPagedKtl
+
+The controls are:
+
+* GroupKn(group:Int,column:Int) - Upper row of encoders
+* GroupTr(group:Int,column:Int) - Upper row of encoders when pressed
+* Bt(row:Int,column:Int) - The two rows of buttons
+* Sl(column:Int) - The slider
+* Pr(row:Int,column:Int) - The 4 buttons at the bottom right
