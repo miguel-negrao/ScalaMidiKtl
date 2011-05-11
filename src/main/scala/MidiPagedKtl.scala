@@ -2,7 +2,8 @@ package org.friendlyvirus.mn.midi
 
 import collection.immutable.{Map,HashMap}
 
-class MidiPagedKtl(ccNameMap: Map[CC,String], InDescr:String, OutDescr:String, val numOfScenes:Int = 32) extends AbstractMidiKtl(ccNameMap,InDescr, OutDescr) {
+class MidiPagedKtl[Ctrl](ccNameMap: Map[Ctrl,CC], InDescr:String, OutDescr:String, val numOfScenes:Int = 32) extends
+  AbstractMidiKtl[Ctrl](ccNameMap,InDescr, OutDescr) {
 
   val numOfScenesBitLength = BigInt(numOfScenes).bitLength
   var currentScene = 0
@@ -14,7 +15,7 @@ class MidiPagedKtl(ccNameMap: Map[CC,String], InDescr:String, OutDescr:String, v
   var actionMap:Map[Int,Double => Unit] = new HashMap()
   var valuesListMap = Seq.tabulate(numOfScenes) { i =>
     nameMap collect {
-      case (key, value) => ( key << numOfScenesBitLength | i, 0.0)
+      case (ctrl, ccint) => ( ccint << numOfScenesBitLength | i, 0.0)
     }
   }.reduceLeft(_++_)
 
@@ -32,16 +33,16 @@ class MidiPagedKtl(ccNameMap: Map[CC,String], InDescr:String, OutDescr:String, v
     }
   }
 
-  def addAction(scene: Int = 0, ctlKey: String, action: Double => Unit) {
+  def addAction(scene: Int = 0, ctlKey: Ctrl, action: Double => Unit) {
     checkScene(scene,
-      getCC(ctlKey) map { cc =>
+      nameMap.get(ctlKey) map { cc =>
         actionMap += (makeCCWithScene(cc, scene) -> action)
       }
     )
   }
 
-  def addActionAll(ctlKey: String, action: Double => Unit) {
-    getCC(ctlKey) map { cc =>
+  def addActionAll(ctlKey: Ctrl, action: Double => Unit) {
+    nameMap.get(ctlKey) map { cc =>
       for(i <- 0 until numOfScenes) {
         actionMap += (makeCCWithScene(cc, i) -> action)
       }
@@ -49,16 +50,16 @@ class MidiPagedKtl(ccNameMap: Map[CC,String], InDescr:String, OutDescr:String, v
 
   }
 
-  def removeAction(scene: Int = 0, ctlKey: String) {
+  def removeAction(scene: Int = 0, ctlKey: Ctrl) {
     checkScene(scene,
-      getCC(ctlKey) map { actionMap -= makeCCWithScene(_, scene) }
+      nameMap.get(ctlKey) map { actionMap -= makeCCWithScene(_, scene) }
     )
   }
 
-  def sendCtl(scene: Int = 0, ctlKey: String, v: Double) {
+  def sendCtl(scene: Int = 0, ctlKey: Ctrl, v: Double) {
 
     checkScene(scene,
-      getCC(ctlKey) foreach {
+      nameMap.get(ctlKey) foreach {
         cc =>
           valuesListMap += (makeCCWithScene(cc, scene) -> v)
           if (scene == currentScene) {
@@ -74,9 +75,9 @@ class MidiPagedKtl(ccNameMap: Map[CC,String], InDescr:String, OutDescr:String, v
       currentScene = scene
       println("MIDIPagedKtl: changed to scene " + (currentScene+1) )
       ccOutMulti(nameMap collect {
-        case (key,string) =>
-          val keyWithScene = key << numOfScenesBitLength | scene
-          (key, (valuesListMap(keyWithScene) * 127).toInt )
+        case (ctlr,cc) =>
+          val keyWithScene = cc << numOfScenesBitLength | scene
+          (cc, (valuesListMap(keyWithScene) * 127).toInt )
       })
 
     }
@@ -100,7 +101,7 @@ class MidiPagedKtl(ccNameMap: Map[CC,String], InDescr:String, OutDescr:String, v
 
 object MidiPagedKtl {
 
-  def apply(nameMap: Map[CC,String], IN_DESCR:String, OUT_DESCR:String, numOfScenes:Int = 32) =
+  def apply[Ctlr](nameMap: Map[Ctlr,CC], IN_DESCR:String, OUT_DESCR:String, numOfScenes:Int = 32) =
     new MidiPagedKtl(nameMap, IN_DESCR, OUT_DESCR, numOfScenes)
 
 }

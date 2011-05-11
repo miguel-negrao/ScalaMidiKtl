@@ -16,11 +16,11 @@ case class CC( channel:Int, num:Int ) {
 
 }
 
-abstract class AbstractMidiKtl(val ccNameMap: Map[CC,String], val IN_DESCR:String, val OUT_DESCR:String) {
+abstract class AbstractMidiKtl[Ctrl](val ccNameMap: Map[Ctrl,CC], val InDescr:String, val OutDescr:String) {
 
   var DUMP_IN    = false
   var DUMP_OUT   = false
-  val nameMap = ccNameMap collect { case (cc,string) => (cc.encodeInt,string) }
+  val nameMap = ccNameMap collect { case (ctlr, cc) => (ctlr, cc.encodeInt) }
 
   protected def inform( what: String ) {
     println( "Midi : " + what )
@@ -30,15 +30,11 @@ abstract class AbstractMidiKtl(val ccNameMap: Map[CC,String], val IN_DESCR:Strin
   protected var out: Option[Receiver] = None
   protected val outMsg = new ShortMessage()
 
-  def onCCIn( cc:Int, v: Double)
-
-  protected def getCC(key:String) = nameMap.collect{ case (a,b) => (b,a) }.get(key)
-
   def init() {
     try {
       val infos   = MidiSystem.getMidiDeviceInfo
-      val inDevO  = infos.filter( _.getDescription == IN_DESCR  ).map( MidiSystem.getMidiDevice( _ )).find( _.getMaxTransmitters != 0 )
-      val outDevO = infos.filter( _.getDescription == OUT_DESCR ).map( MidiSystem.getMidiDevice( _ )).find( _.getMaxReceivers != 0 )
+      val inDevO  = infos.filter( _.getDescription == InDescr  ).map( MidiSystem.getMidiDevice( _ )).find( _.getMaxTransmitters != 0 )
+      val outDevO = infos.filter( _.getDescription == OutDescr ).map( MidiSystem.getMidiDevice( _ )).find( _.getMaxReceivers != 0 )
 
       (inDevO, outDevO) match {
         case (Some( inDev ), Some( outDev )) =>
@@ -63,13 +59,13 @@ abstract class AbstractMidiKtl(val ccNameMap: Map[CC,String], val IN_DESCR:Strin
           })
           sync.synchronized { out = Some(outDev.getReceiver) }
           nameMap foreach {
-            case (key, value) => ccOut(key, 0.toInt)
+            case (ctlr, cc) => ccOut(cc, 0.toInt)
           }
 
 
         case _ =>
-          if( inDevO.isEmpty )  inform( "No input device '" +  IN_DESCR +  "' found!" )
-          if( outDevO.isEmpty ) inform( "No output device '" + OUT_DESCR + "' found!" )
+          if( inDevO.isEmpty )  inform( "No input device '" +  InDescr +  "' found!" )
+          if( outDevO.isEmpty ) inform( "No output device '" + OutDescr + "' found!" )
       }
     } catch {
       case e =>
@@ -78,7 +74,9 @@ abstract class AbstractMidiKtl(val ccNameMap: Map[CC,String], val IN_DESCR:Strin
     }
   }
 
-  def ccOut ( cc:Int, v: Int ) {
+  protected def onCCIn( cc:Int, v: Double)
+
+  protected def ccOut ( cc:Int, v: Int ) {
 
     sync.synchronized {
       out foreach {
@@ -92,7 +90,7 @@ abstract class AbstractMidiKtl(val ccNameMap: Map[CC,String], val IN_DESCR:Strin
 
   }
 
-  def ccOutMulti ( values:Map[Int,Int] ) {
+  protected def ccOutMulti ( values:Map[Int,Int] ) {
 
     sync.synchronized {
       out foreach { out =>

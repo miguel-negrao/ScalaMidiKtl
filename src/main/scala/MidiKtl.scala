@@ -10,18 +10,24 @@ package org.friendlyvirus.mn.midi
 
 import collection.immutable.HashMap
 
-class MidiKtl(ccNameMap: Map[CC,String], IN_DESCR:String, OUT_DESCR:String) extends AbstractMidiKtl(ccNameMap, IN_DESCR:String, OUT_DESCR:String) {
+class MidiKtl[Ctrl](ccNameMap: Map[Ctrl,CC], InDescr:String, OutDescr:String) extends AbstractMidiKtl[Ctrl](ccNameMap, InDescr:String, OutDescr:String) {
 
   var actionMap:Map[Int,Double => Unit] = new HashMap
 
-  def onCCIn(cc:Int, v:Double) { println( actionMap.get(cc) ); actionMap.get(cc).map( _(v) ) }
+  def onCCIn(cc:Int, v:Double) { actionMap.get(cc).map( _(v) ) }
 
-  def addAction (key:String, action:Double => Unit ) {
-    nameMap.collect{ case (a,b) => (b,a) }.getOrElse(key,println("no int for string: "+key))
-    nameMap.collect{ case (a,b) => (b,a) }.get(key) map { actionMap +=  _ -> action }
+  def addAction (key:Ctrl, action:Double => Unit ) {
+    nameMap.get(key) map { actionMap +=  _ -> action } orElse { error("no int for string: "+key) }
   }
 
-  def removeAction (ctlKey:String) { nameMap.collect{ case (a,b) => (b,a) }.get(ctlKey) map { actionMap -= _ } }
+  def removeAction (ctlKey:Ctrl) { nameMap.get(ctlKey) map { actionMap -= _ } }
 
-  def sendCtl(ctlKey:String, v:Double){ nameMap.collect{ case (a,b) => (b,a) }.get(ctlKey) map { ccOut(_, (v*127).toInt ) } }
+  def sendCtl (ctlKey:Ctrl, v:Double){ nameMap.get(ctlKey) map { ccOut(_, (v*127).toInt ) } }
+}
+
+object MidiKtl {
+
+  def apply[Ctlr](nameMap: Map[Ctlr,CC], InDescr:String, OutDescr:String) =
+    new MidiKtl(nameMap, InDescr, OutDescr)
+
 }
