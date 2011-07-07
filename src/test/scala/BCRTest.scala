@@ -57,13 +57,13 @@ object BCRKtlTest extends SimpleSwingApplication {
   ) yield { Pr(i,j) }))
 
 
-  val bcr = BCRKtl()
+  val bcr = BCR.ktl()
   bcr.init
   bcr.DUMP_IN = false
 
   for( control <- allControls ) {
     bcr.addAction(control,{ v:Double =>
-      ccTxt.text = caseClassToString(control); valueTxt.text =  "%3.2f" format v
+      ccTxt.text = control.toString; valueTxt.text =  "%3.2f" format v
       control match { case Kn(a,0) => bcr.sendCtl(Kn(a,7), v) }
     })
   }
@@ -119,7 +119,7 @@ object BCRPagedKtlTest extends SimpleSwingApplication {
 
   }
 
-  val bcr = BCRPagedKtl()
+  val bcr = BCR.pagedKtl()
   bcr.init
   bcr.DUMP_IN = false
   for(
@@ -129,7 +129,7 @@ object BCRPagedKtlTest extends SimpleSwingApplication {
     val prsc = scene.toString
     val sceneint = scene
     bcr.addAction(scene, control,{ v:Double =>
-      ccTxt.text = caseClassToString(control); sceneTxt.text = prsc; valueTxt.text =  "%3.2f" format v
+      ccTxt.text = control.toString; sceneTxt.text = prsc; valueTxt.text =  "%3.2f" format v
       control match { case Kn(a,0) => bcr.sendCtl(sceneint, Kn(a,7), v) }
 
     })

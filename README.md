@@ -5,7 +5,7 @@ A set of classes for easy use of Midi controllers in scala.
 
 MidiKtl -> A simple controller.
 
-MidiPagedKtl -> A multi-page midi controller. Each page is a virtual scene, whose values are kept. This is recomended for use only with controllers that support incoming midi messages and can reassign the controls based on these messages, i.e. with motorized faders or encoders.
+MidiPagedKtl -> A multi-page midi controller. Each page is a virtual scene, whose values are kept. This is recommended for use only with controllers that support incoming midi messages and can reassign the controls based on these messages, i.e. with motorized faders or encoders.
 
 Controllers suported:
 

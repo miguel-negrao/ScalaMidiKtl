@@ -1,7 +1,6 @@
 package org.friendlyvirus.mn.midi
 
 import collection.immutable.HashMap
-import org.friendlyvirus.mn.midi.BCF._
 
 /**
  * Created by IntelliJ IDEA.
@@ -40,7 +39,7 @@ object BCF {
       Bt(1,coll) -> CC(0,  73+coll),
       // knobs (lower 3 rows)
       Sl(coll) -> CC(0,  81+coll)
-    ))
+    )).asInstanceOf[Map[BCFControl,CC]]
 
   }.reduceLeft( _ ++ _)
   ++
