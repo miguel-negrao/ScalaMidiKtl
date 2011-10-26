@@ -30,13 +30,18 @@ abstract class AbstractMidiKtl[Ctrl](val ccNameMap: Map[Ctrl,CC], val InDescr:St
   protected var out: Option[Receiver] = None
   protected val outMsg = new ShortMessage()
 
-  def init() {
-    try {
-      val infos   = MidiSystem.getMidiDeviceInfo
-      val inDevO  = infos.filter( _.getDescription == InDescr  ).map( MidiSystem.getMidiDevice( _ )).find( _.getMaxTransmitters != 0 )
-      val outDevO = infos.filter( _.getDescription == OutDescr ).map( MidiSystem.getMidiDevice( _ )).find( _.getMaxReceivers != 0 )
+  protected def getIODevs = {
+    val infos   = MidiSystem.getMidiDeviceInfo
+    val inDevO  = infos.filter( _.getDescription == InDescr  ).map( MidiSystem.getMidiDevice( _ )).find( _.getMaxTransmitters != 0 )
+    val outDevO = infos.filter( _.getDescription == OutDescr ).map( MidiSystem.getMidiDevice( _ )).find( _.getMaxReceivers != 0 )
 
-      (inDevO, outDevO) match {
+    (inDevO, outDevO)
+  }
+
+  protected def init() {
+    try {
+      val (inDevO,outDevO) = getIODevs
+      (inDevO,outDevO) match {
         case (Some( inDev ), Some( outDev )) =>
           inDev.open()
           outDev.open()
@@ -74,6 +79,13 @@ abstract class AbstractMidiKtl[Ctrl](val ccNameMap: Map[Ctrl,CC], val InDescr:St
     }
   }
 
+  def dispose() {
+    val (inDev,outDev) = getIODevs
+    inDev.map(_.close())
+    outDev.map(_.close())
+    out = None
+  }
+
   protected def onCCIn( cc:Int, v: Double)
 
   protected def ccOut ( cc:Int, v: Int ) {
@@ -106,5 +118,7 @@ abstract class AbstractMidiKtl[Ctrl](val ccNameMap: Map[Ctrl,CC], val InDescr:St
     }
 
   }
+
+  init()
 
 }

@@ -97,6 +97,10 @@ class MidiPagedKtl[Ctrl](ccNameMap: Map[Ctrl,CC], InDescr:String, OutDescr:Strin
       changeScene(previousScene)
     }
   }
+
+  def clear() {
+    actionMap = new HashMap
+  }
 }
 
 object MidiPagedKtl {

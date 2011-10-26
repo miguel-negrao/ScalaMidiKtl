@@ -17,12 +17,16 @@ class MidiKtl[Ctrl](ccNameMap: Map[Ctrl,CC], InDescr:String, OutDescr:String) ex
   def onCCIn(cc:Int, v:Double) { actionMap.get(cc).map( _(v) ) }
 
   def addAction (key:Ctrl, action:Double => Unit ) {
-    nameMap.get(key) map { actionMap +=  _ -> action } orElse { error("no int for string: "+key) }
+    nameMap.get(key) map { actionMap +=  _ -> action } orElse { sys.error("no int for string: "+key) }
   }
 
   def removeAction (ctlKey:Ctrl) { nameMap.get(ctlKey) map { actionMap -= _ } }
 
   def sendCtl (ctlKey:Ctrl, v:Double){ nameMap.get(ctlKey) map { ccOut(_, (v*127).toInt ) } }
+
+  def clear() {
+    actionMap = new HashMap
+  }
 }
 
 object MidiKtl {

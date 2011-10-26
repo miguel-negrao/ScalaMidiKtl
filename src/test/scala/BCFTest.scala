@@ -58,7 +58,6 @@ object BCFKtlTest extends SimpleSwingApplication {
 
 
   val bcf = BCF.ktl()
-  bcf.init
   bcf.DUMP_IN = false
 
   for( control <- allControls ) {
@@ -121,7 +120,6 @@ object BCFPagedKtlTest extends SimpleSwingApplication {
   }
 
   val bcf = BCF.pagedKtl()
-  bcf.init
   bcf.DUMP_IN = false
   for(
     control <- allControls if (control != Pr(1,0) & control != Pr(1,1));
