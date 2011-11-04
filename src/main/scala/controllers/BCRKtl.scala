@@ -57,8 +57,9 @@ object BCR {
 
   def ktl(IN_DESCR:String = "BCR2000 Porta 1", OUT_DESCR:String = "BCR2000 Porta 1") = new MidiKtl[BCRControl]( getDefaults, IN_DESCR, OUT_DESCR)
 
-  def pagedKtl(InDescr:String = "BCR2000 Porta 1", OutDescr:String = "BCR2000 Porta 1") = {
-    val pagedKtl = new MidiPagedKtl[BCRControl](BCR.getDefaults, InDescr, OutDescr)
+  def pagedKtl(InDescr:String = "BCR2000 Porta 1", OutDescr:String = "BCR2000 Porta 1", numOfScenes:Int = 32,
+    nonPagedControls:IndexedSeq[BCRControl] = IndexedSeq.empty[BCRControl]) = {
+    val pagedKtl = new MidiPagedKtl[BCRControl](BCR.getDefaults, InDescr, OutDescr, numOfScenes, nonPagedControls)
     pagedKtl.addActionAll( Pr(1,0), { v:Double => pagedKtl.sendCtl( pagedKtl.currentScene, Pr(1,0), 0 ); pagedKtl.previousScene() } )
     pagedKtl.addActionAll( Pr(1,1), { v:Double => pagedKtl.sendCtl( pagedKtl.currentScene, Pr(1,1), 0 ); pagedKtl.nextScene() } )
     pagedKtl

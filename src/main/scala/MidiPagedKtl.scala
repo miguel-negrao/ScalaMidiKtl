@@ -2,30 +2,48 @@ package org.friendlyvirus.mn.midi
 
 import collection.immutable.{Map,HashMap}
 
-class MidiPagedKtl[Ctrl](ccNameMap: Map[Ctrl,CC], InDescr:String, OutDescr:String, val numOfScenes:Int = 32) extends
+class MidiPagedKtl[Ctrl](ccNameMap: Map[Ctrl,CC], InDescr:String, OutDescr:String, val numOfScenes:Int = 32,
+  val nonPagedControls:IndexedSeq[Ctrl] = IndexedSeq.empty[Ctrl]) extends
   AbstractMidiKtl[Ctrl](ccNameMap,InDescr, OutDescr) {
 
-  val numOfScenesBitLength = BigInt(numOfScenes).bitLength
-  var currentScene = 0
+  private val numOfScenesBitLength = BigInt(numOfScenes).bitLength
+  private var _currentScene = 0
 
-  def makeCCWithScene(cc:Int, scene:Int) = cc << numOfScenesBitLength | scene
-  def makeCCWithCurrentScene(cc:Int) = cc << numOfScenesBitLength | currentScene
-  def getSceneFromInt(cc:Int) = cc & numOfScenesBitLength
+  def currentScene = _currentScene
 
-  var actionMap:Map[Int,Double => Unit] = new HashMap()
-  var valuesListMap = Seq.tabulate(numOfScenes) { i =>
+  private def makeCCWithScene(cc:Int, scene:Int) = cc << numOfScenesBitLength | scene
+  private def makeCCWithCurrentScene(cc:Int) = cc << numOfScenesBitLength | _currentScene
+  private def getSceneFromInt(cc:Int) = cc & numOfScenesBitLength
+
+  private val nonPagedControlsCCs = nonPagedControls map ( ccNameMap(_).encodeInt )
+  private var actionMap:Map[Int,Double => Unit] = new HashMap()
+  private var pageChangeFunc = Option.empty[Int=>Unit]
+  private var valuesListMap = Seq.tabulate(numOfScenes) { i =>
     nameMap collect {
-      case (ctrl, ccint) => ( ccint << numOfScenesBitLength | i, 0.0)
+      case (ctrl, ccint) if ccIsPaged(ccint) => ( ccint << numOfScenesBitLength | i, 0.0)
     }
   }.reduceLeft(_++_)
 
-  def onCCIn(cc: Int, v: Double) {
-    val cc_scene = makeCCWithCurrentScene(cc)
-    valuesListMap  += (cc_scene -> v)
-    actionMap.get(cc_scene) map { _(v) }
+  private var singleActionMap = Map.empty[Int,Double => Unit]
+  private var valuesMap = nameMap collect {
+    case (ctrl, ccint) if ccIsSingle(ccint) => (ccint, 0.0)
   }
 
-  def checkScene(scene:Int, func: => Unit) {
+  private def ccIsSingle(cc:Int) = nonPagedControlsCCs.contains(cc)
+  private def ccIsPaged(cc:Int) = !nonPagedControlsCCs.contains(cc)
+
+  def onCCIn(cc: Int, v: Double) {
+    if( ccIsSingle(cc) ) {
+      valuesMap += (cc -> v)
+      singleActionMap.get(cc) map { _(v) }
+    } else {
+      val cc_scene = makeCCWithCurrentScene(cc)
+      valuesListMap  += (cc_scene -> v)
+      actionMap.get(cc_scene) map { _(v) }
+    }
+  }
+
+  private def checkScene(scene:Int, func: => Unit) {
     if( scene < numOfScenes ) {
       func
     } else {
@@ -34,66 +52,105 @@ class MidiPagedKtl[Ctrl](ccNameMap: Map[Ctrl,CC], InDescr:String, OutDescr:Strin
   }
 
   def addAction(scene: Int = 0, ctlKey: Ctrl, action: Double => Unit) {
-    checkScene(scene,
-      nameMap.get(ctlKey) map { cc =>
-        actionMap += (makeCCWithScene(cc, scene) -> action)
+    nameMap.get(ctlKey) map { cc =>
+      if( ccIsPaged(cc) ) {
+        checkScene(scene, actionMap += (makeCCWithScene(cc, scene) -> action) )
       }
-    )
+    }
   }
+
+  def addAction(ctlKey: Ctrl, action: Double => Unit) {
+    nameMap.get(ctlKey) map { cc =>
+      if( ccIsSingle(cc) ) {
+        singleActionMap += (cc -> action)
+       }
+    }
+   }
 
   def addActionAll(ctlKey: Ctrl, action: Double => Unit) {
     nameMap.get(ctlKey) map { cc =>
-      for(i <- 0 until numOfScenes) {
-        actionMap += (makeCCWithScene(cc, i) -> action)
+      if( ccIsPaged(cc) ) {
+        for(i <- 0 until numOfScenes) {
+          actionMap += (makeCCWithScene(cc, i) -> action)
+        }
+      } else {
+        singleActionMap += (cc -> action)
       }
     }
+  }
 
+  def addPageChangeAction(func:Int=>Unit) {
+    pageChangeFunc = Some(func)
+  }
+
+  def removePageChangeAction{
+      pageChangeFunc = None
   }
 
   def removeAction(scene: Int = 0, ctlKey: Ctrl) {
-    checkScene(scene,
-      nameMap.get(ctlKey) map { actionMap -= makeCCWithScene(_, scene) }
-    )
+    nameMap.get(ctlKey) map { cc =>
+      if( ccIsPaged(cc) ) {
+        checkScene(scene, actionMap -= makeCCWithScene(cc, scene) )
+      }
+    }
+  }
+
+  def removeAction(ctlKey: Ctrl) {
+    nameMap.get(ctlKey) map { cc =>
+     if( ccIsSingle(cc) ) {
+       singleActionMap -= cc
+     }
+    }
   }
 
   def sendCtl(scene: Int = 0, ctlKey: Ctrl, v: Double) {
-
-    checkScene(scene,
-      nameMap.get(ctlKey) foreach {
-        cc =>
-          valuesListMap += (makeCCWithScene(cc, scene) -> v)
-          if (scene == currentScene) {
-            ccOut(cc, (v * 127).toInt)
+    nameMap.get(ctlKey) foreach { cc =>
+      if( ccIsPaged(cc) ) {
+        checkScene(scene,
+          {
+            valuesListMap += (makeCCWithScene(cc, scene) -> v)
+            if (scene == _currentScene) {
+              ccOut(cc, (v * 127).toInt)
+            }
           }
+        )
       }
-    )
+    }
+  }
+
+  def sendCtl(ctlKey: Ctrl, v: Double) {
+    nameMap.get(ctlKey) foreach { cc =>
+      if( ccIsSingle(cc) ) {
+        valuesMap += (cc -> v)
+        ccOut(cc, (v * 127).toInt)
+      }
+    }
   }
 
   def changeScene(scene: Int) {
 
-    if ( (scene >= 0) & (scene < numOfScenes) & (scene != currentScene) ) {
-      currentScene = scene
-      println("MIDIPagedKtl: changed to scene " + (currentScene+1) )
+    if ( (scene >= 0) & (scene < numOfScenes) & (scene != _currentScene) ) {
+      _currentScene = scene
+      if( DUMP_OUT ) { println("MIDIPagedKtl: changed to scene " + (_currentScene+1) ) }
       ccOutMulti(nameMap collect {
-        case (ctlr,cc) =>
-          val keyWithScene = cc << numOfScenesBitLength | scene
-          (cc, (valuesListMap(keyWithScene) * 127).toInt )
+        case (ctlr,cc) if ccIsPaged(cc) => (cc, (valuesListMap(makeCCWithScene(cc,scene)) * 127).toInt )
       })
+      pageChangeFunc map ( _(scene) )
 
     }
 
   }
 
   def nextScene() {
-    val nextScene = (currentScene + 1).max(0).min(numOfScenes - 1)
-    if (nextScene != currentScene) {
+    val nextScene = (_currentScene + 1).max(0).min(numOfScenes - 1)
+    if (nextScene != _currentScene) {
       changeScene(nextScene)
     }
   }
 
   def previousScene() {
-    var previousScene = (currentScene - 1).max(0).min(numOfScenes - 1)
-    if (previousScene != currentScene) {
+    var previousScene = (_currentScene - 1).max(0).min(numOfScenes - 1)
+    if (previousScene != _currentScene) {
       changeScene(previousScene)
     }
   }
